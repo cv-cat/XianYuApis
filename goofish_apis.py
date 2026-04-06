@@ -99,7 +99,7 @@ class XianyuApis:
 
 
 if __name__ == '__main__':
-    cookies_str = r'_samesite_flag_=true; cookie2=1bc5027d7f2fffd9ff59ecf678d19e01; t=d06336d57d1a6278c9bfb1d99eb23896; _tb_token_=37bebb14ea6b4; cna=u2VaIj2q8V8CAXAC/C1wzj43; xlly_s=1; tracknick=tb093613712; unb=3888777108; sgcookie=E100h0KObY67IH3dQd0PYmupdjQPPSdVNN%2BZpSSQ0e7H%2F%2BGuJ3iNQWriZALomhoevpDXHc4oFBxkV3paKB%2B%2FLrSE72usEkP6%2BqH3BgiN7Cx0qBU%3D; csg=49fcc58b; havana_lgc2_77=eyJoaWQiOjM4ODg3NzcxMDgsInNnIjoiNWUxNTgxMzgyODZhNzU2MTQzODhhOGZjNTNjYjI4ZGIiLCJzaXRlIjo3NywidG9rZW4iOiIxRmRpM2hHSmRtZDZkRjJIT01rYUcwdyJ9; _hvn_lgc_=77; havana_lgc_exp=1778058479377; isg=BMvLHFAjJkE-U3qVWjHOewFNWm-1YN_icuudHj3IbYphXOu-xTDXMmk_MlSy-zfa; sdkSilent=1775552889228; mtop_partitioned_detect=1; _m_h5_tk=ac05e051d07cb5c4fc1d46f192c0bf98_1775480876825; _m_h5_tk_enc=14a2c74c87c02bb1f9ea3b7dc39284c4; tfstk=gQzIp30LipvI6nfdep5w1gc-9kg7P172VQG8i7Lew23peLFxQJkE8_bSeJDa8vPEJaaS-PrezvWnP7eqPtWVuZP3tm0R3tyPSUdZkXhJyL8pWV3rNzwLIUN3t4AM_LI4XWbW2gRtw4e-WchjO4KKpDCsWXcjyenJJhptIb3-y0nKBFhS9HKK9UC_6AcryYe-v1gtIb3-e83-Hc9saMG8O_By01yllWVKCUL8JwmnhgDjsX41ncM49P8JygcIAxFKC9NETZnTZ0akZUMU9o2oMJpd3DV8fRGIPN-Kk5Z8hf4dupGgY5FqBSOkrWuQ5PGYW_LxUyZaMAgXwwFsRviY8D_fG-F_woo_7sQmR2HL42VyG9P_RJP357RJX2gUfmaIkZvKUlPbPbalENwbiP2s6-Q5pgRJuxMJL3OsmUGs3116q3cle4XaiWLJeDhi9Z511dtovfcs3116q3mKsXEV1196q'
+    cookies_str = r''
     cookies = trans_cookies(cookies_str)
     xianyu = XianyuApis(cookies, generate_device_id(cookies['unb']))
     res = xianyu.get_token()

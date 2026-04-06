@@ -21,26 +21,82 @@ class XianyuLive:
         self.xianyu = XianyuApis(self.cookies, self.device_id)
         self.ws = None
 
-    async def list_all_conversations(self, ws, cid):
-        msg = {
-            "lwp": "/r/MessageManager/listUserMessages",
-            "headers": {
-                "mid": generate_mid()
-            },
-            "body": [
-                f"{cid}@goofish",
-                False,
-                "9007199254740991",
-                20,
-                False
-            ]
+    async def list_all_conversations(self, cid):
+        headers = {
+            "Cookie": self.cookies_str,
+            "Host": "wss-goofish.dingtalk.com",
+            "Connection": "Upgrade",
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+            "Origin": "https://www.goofish.com",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Accept-Language": "zh-CN,zh;q=0.9",
         }
-        await ws.send(msg)
-        try:
-            has_more =
-            ["body"]["userMessageModels"][0]["message"]["content"]["custom"]["title"]
-
-
+        async with websockets.connect(self.base_url, extra_headers=headers) as websocket:
+            asyncio.create_task(self.init(websocket))
+            send_mid = generate_mid()
+            msg = {
+                "lwp": "/r/MessageManager/listUserMessages",
+                "headers": {
+                    "mid": send_mid
+                },
+                "body": [
+                    f"{cid}@goofish",
+                    False,
+                    9007199254740991,
+                    20,
+                    False
+                ]
+            }
+            user_message_models = []
+            async for message in websocket:
+                try:
+                    message = json.loads(message)
+                    ack = {
+                        "code": 200,
+                        "headers": {
+                            "mid": message["headers"]["mid"] if "mid" in message["headers"] else generate_mid(),
+                            "sid": message["headers"]["sid"] if "sid" in message["headers"] else '',
+                        }
+                    }
+                    if 'app-key' in message["headers"]:
+                        ack["headers"]["app-key"] = message["headers"]["app-key"]
+                    if 'ua' in message["headers"]:
+                        ack["headers"]["ua"] = message["headers"]["ua"]
+                    if 'dt' in message["headers"]:
+                        ack["headers"]["dt"] = message["headers"]["dt"]
+                    await websocket.send(json.dumps(ack))
+                except Exception as e:
+                    pass
+                try:
+                    if 'lwp' in message and message['lwp'] == "/s/vulcan":
+                        await websocket.send(json.dumps(msg))
+                    recv_mid = message["headers"]["mid"] if "mid" in message["headers"] else ''
+                    if recv_mid == send_mid:
+                        logger.info(f"user history message: {message}")
+                        has_more = message["body"]["hasMore"] == 1
+                        next_cursor = message["body"]["nextCursor"]
+                        for user_message in message["body"]["userMessageModels"]:
+                            send_user_name = user_message["message"]["extension"]["reminderTitle"]
+                            send_user_id = user_message["message"]["extension"]["senderUserId"]
+                            send_message_base64 = user_message["message"]["content"]["custom"]["data"]
+                            send_message_json = json.loads(base64.b64decode(send_message_base64).decode('utf-8'))
+                            user_message_models.insert(0, {
+                                "send_user_id": send_user_id,
+                                "send_user_name": send_user_name,
+                                "message": send_message_json
+                            })
+                        if has_more:
+                            logger.info(f"has more history messages, next cursor: {next_cursor}")
+                            send_mid = generate_mid()
+                            msg["headers"]["mid"] = send_mid
+                            msg["body"][2] = next_cursor
+                            await websocket.send(json.dumps(msg))
+                        else:
+                            return user_message_models
+                except Exception as e:
+                    return user_message_models
 
     async def create_chat(self, ws, toid, item_id='891198795482'):
         msg = {
@@ -288,18 +344,25 @@ class XianyuLive:
 
 
 if __name__ == '__main__':
-    cookies_str = r'_samesite_flag_=true; cookie2=1bc5027d7f2fffd9ff59ecf678d19e01; t=d06336d57d1a6278c9bfb1d99eb23896; _tb_token_=37bebb14ea6b4; cna=u2VaIj2q8V8CAXAC/C1wzj43; xlly_s=1; tracknick=tb093613712; unb=3888777108; sgcookie=E100h0KObY67IH3dQd0PYmupdjQPPSdVNN%2BZpSSQ0e7H%2F%2BGuJ3iNQWriZALomhoevpDXHc4oFBxkV3paKB%2B%2FLrSE72usEkP6%2BqH3BgiN7Cx0qBU%3D; csg=49fcc58b; havana_lgc2_77=eyJoaWQiOjM4ODg3NzcxMDgsInNnIjoiNWUxNTgxMzgyODZhNzU2MTQzODhhOGZjNTNjYjI4ZGIiLCJzaXRlIjo3NywidG9rZW4iOiIxRmRpM2hHSmRtZDZkRjJIT01rYUcwdyJ9; _hvn_lgc_=77; havana_lgc_exp=1778058479377; isg=BMvLHFAjJkE-U3qVWjHOewFNWm-1YN_icuudHj3IbYphXOu-xTDXMmk_MlSy-zfa; sdkSilent=1775552889228; mtop_partitioned_detect=1; _m_h5_tk=ac05e051d07cb5c4fc1d46f192c0bf98_1775480876825; _m_h5_tk_enc=14a2c74c87c02bb1f9ea3b7dc39284c4; tfstk=gQzIp30LipvI6nfdep5w1gc-9kg7P172VQG8i7Lew23peLFxQJkE8_bSeJDa8vPEJaaS-PrezvWnP7eqPtWVuZP3tm0R3tyPSUdZkXhJyL8pWV3rNzwLIUN3t4AM_LI4XWbW2gRtw4e-WchjO4KKpDCsWXcjyenJJhptIb3-y0nKBFhS9HKK9UC_6AcryYe-v1gtIb3-e83-Hc9saMG8O_By01yllWVKCUL8JwmnhgDjsX41ncM49P8JygcIAxFKC9NETZnTZ0akZUMU9o2oMJpd3DV8fRGIPN-Kk5Z8hf4dupGgY5FqBSOkrWuQ5PGYW_LxUyZaMAgXwwFsRviY8D_fG-F_woo_7sQmR2HL42VyG9P_RJP357RJX2gUfmaIkZvKUlPbPbalENwbiP2s6-Q5pgRJuxMJL3OsmUGs3116q3cle4XaiWLJeDhi9Z511dtovfcs3116q3mKsXEV1196q'
+    cookies_str = r''
     xianyuLive = XianyuLive(cookies_str)
 
-    # 主动发送一次消息
+    # 1 主动发送一次消息
     to_id = '2202640918079'
     item_id = '897742748011'
+    # choice 1
     # asyncio.run(xianyuLive.send_msg_once(to_id, item_id, make_text('Hello, this is an active message!')))
+    # choice 2
+    # res_json = xianyuLive.xianyu.upload_media(r"D:\Desktop\1.png")
+    # image_object = res_json["object"]
+    # width, height = map(int, image_object["pix"].split('x'))
+    # asyncio.run(xianyuLive.send_msg_once(to_id, item_id, make_image(res_json["object"]["url"], width, height)))
 
-    res_json = xianyuLive.xianyu.upload_media(r"D:\Desktop\1.png")
-    image_object = res_json["object"]
-    width, height = map(int, image_object["pix"].split('x'))
-    asyncio.run(xianyuLive.send_msg_once(to_id, item_id, make_image(res_json["object"]["url"], width, height)))
+    # 2 获取全部聊天记录
+    cid = '47812870000'
+    all_messages = asyncio.run(xianyuLive.list_all_conversations(cid))
+    for message in all_messages:
+        print(message)
 
-    # 常驻进程 用于接收消息和自动回复
+    # 3 常驻进程 用于接收消息和自动回复
     # asyncio.run(xianyuLive.main())

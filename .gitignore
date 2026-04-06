@@ -28,3 +28,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+test.py
+test1.py
+test2.py

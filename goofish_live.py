@@ -238,34 +238,6 @@ class XianyuLive:
         await ws.send(json.dumps(msg))
         logger.info('init')
 
-
-    async def send_msg_once(self, toid, item_id, send_message: Message):
-        headers = {
-            "Cookie": get_session_cookies_str(self.xianyu.session),
-            "Host": "wss-goofish.dingtalk.com",
-            "Connection": "Upgrade",
-            "Pragma": "no-cache",
-            "Cache-Control": "no-cache",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
-            "Origin": "https://www.goofish.com",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Accept-Language": "zh-CN,zh;q=0.9",
-        }
-        async with websockets.connect(self.base_url, extra_headers=headers) as websocket:
-            await self.init(websocket)
-            await self.create_chat(websocket, toid, item_id)
-            async for message in websocket:
-                try:
-                    logger.info(f"message: {message}")
-                    message = json.loads(message)
-                    cid = message["body"]["singleChatConversation"]["cid"]
-                    cid = cid.split('@')[0]
-                    await self.send_msg(websocket, cid, toid, send_message)
-                    logger.info('send message')
-                    return
-                except Exception as e:
-                    pass
-
     async def heart_beat(self, ws):
         while True:
             msg = {
@@ -355,22 +327,11 @@ if __name__ == '__main__':
     cookies_str = r''
     xianyuLive = XianyuLive(cookies_str)
 
-    # 1 主动发送一次消息
-    # to_id = '2202640918079'
-    # item_id = '897742748011'
-    # choice 1
-    # asyncio.run(xianyuLive.send_msg_once(to_id, item_id, make_text('Hello, this is an active message!')))
-    # choice 2
-    # res_json = xianyuLive.xianyu.upload_media(r"D:\Desktop\1.png")
-    # image_object = res_json["object"]
-    # width, height = map(int, image_object["pix"].split('x'))
-    # asyncio.run(xianyuLive.send_msg_once(to_id, item_id, make_image(res_json["object"]["url"], width, height)))
-
-    # 2 获取全部聊天记录
+    # 1 获取全部聊天记录
     # cid = '47812870000'
     # all_messages = asyncio.run(xianyuLive.list_all_conversations(cid))
     # for message in all_messages:
     #     print(message)
 
-    # 3 常驻进程 用于接收消息和自动回复
+    # 2 常驻进程 用于接收消息和自动回复
     asyncio.run(xianyuLive.main())

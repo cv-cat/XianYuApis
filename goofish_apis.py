@@ -128,7 +128,6 @@ class XianyuApis:
         res_json = response.json()
         return res_json
 
-
     def upload_media(self, media_path):
         headers = {
             "accept": "*/*",

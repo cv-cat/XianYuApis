@@ -1,18 +1,283 @@
 '''
-Description: 
+Description:
 Date: 2026-04-04 15:32:48
-LastEditTime: 2026-04-06 19:10:56
-FilePath: \XianYuApis\XianyuApis.py
+LastEditTime: 2026-04-26 14:33:00
+FilePath: \XianYuApis\goofish_apis.py
 '''
 import json
 import os
+import subprocess
 import time
+from pathlib import Path
 from typing import Optional, List
+from urllib.parse import quote
 
 import requests
 
 from message.types import Price, DeliverySettings
 from utils.goofish_utils import generate_sign, trans_cookies, generate_device_id
+
+UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36')
+
+_MTOP_HEADERS = {
+    'User-Agent':         UA,
+    'Accept':             'application/json',
+    'Accept-Language':    'en,zh-CN;q=0.9,zh;q=0.8,zh-TW;q=0.7,ja;q=0.6',
+    'Accept-Encoding':    'gzip, deflate, br, zstd',
+    'sec-ch-ua':          '"Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+    'sec-ch-ua-mobile':   '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'Origin':             'https://www.goofish.com',
+    'Referer':            'https://www.goofish.com/',
+    'sec-fetch-dest':     'empty',
+    'sec-fetch-mode':     'cors',
+    'sec-fetch-site':     'same-site',
+    'priority':           'u=1, i',
+    'Content-Type':       'application/x-www-form-urlencoded',
+}
+
+_PASSPORT_HEADERS = {
+    'User-Agent':         UA,
+    'Accept':             'application/json, text/plain, */*',
+    'Accept-Language':    'en,zh-CN;q=0.9,zh;q=0.8,zh-TW;q=0.7,ja;q=0.6',
+    'Accept-Encoding':    'gzip, deflate, br, zstd',
+    'sec-ch-ua':          '"Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+    'sec-ch-ua-mobile':   '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest':     'empty',
+    'sec-fetch-mode':     'cors',
+    'sec-fetch-site':     'same-origin',
+    'priority':           'u=1, i',
+}
+
+_HERE = Path(__file__).resolve().parent
+
+
+def _gen_tfstk(timeout: int = 15) -> str:
+    script = _HERE / 'utils' / 'gen_tfstk.js'
+    if not script.exists():
+        return ''
+    try:
+        out = subprocess.check_output(['node', str(script)], timeout=timeout, stderr=subprocess.PIPE)
+        return out.decode().strip()
+    except Exception:
+        return ''
+
+
+def build_initial_cookies() -> dict:
+    """纯 HTTP 获取闲鱼初始 cookie（不含登录态）"""
+    s = requests.Session()
+    s.headers.update({'User-Agent': UA})
+
+    s.get('https://log.mmstat.com/eg.js', timeout=10)
+    cna = s.cookies.get('cna', domain='.mmstat.com')
+    if cna:
+        s.cookies.set('cna', cna, domain='.goofish.com', path='/')
+
+    for api in ['mtop.taobao.idlehome.home.webpc.feed',
+                'mtop.gaia.nodejs.gaia.idle.data.gw.v2.index.get']:
+        s.post(
+            f'https://h5api.m.goofish.com/h5/{api}/1.0/',
+            params={'jsv': '2.7.2', 'appKey': '34839810',
+                    't': str(int(time.time() * 1000)), 'sign': '', 'v': '1.0',
+                    'type': 'originaljson', 'dataType': 'json', 'timeout': '20000',
+                    'api': api, 'sessionOption': 'AutoLoginOnly',
+                    'spm_cnt': 'a21ybx.home.0.0'},
+            data='data=%7B%7D', headers=_MTOP_HEADERS, timeout=10)
+
+    tfstk = _gen_tfstk()
+    if tfstk:
+        s.cookies.set('tfstk', tfstk, domain='.goofish.com', path='/')
+
+    return s
+
+
+def qrcode_login(poll_interval: float = 3.0, timeout: float = 120.0,
+                 show_qrcode: bool = True) -> 'XianyuApis':
+    """扫码登录闲鱼，返回已登录的 XianyuApis 实例。
+
+    流程：
+    1. build_initial_cookies() 拿基础 cookie
+    2. 请求 passport 加载 mini_login 页面拿 passport 域 cookie
+    3. generate.do 获取二维码 URL
+    4. 终端展示二维码（需 qrcode 库）或打印 URL
+    5. 轮询 query.do 等待扫码确认
+    6. login_token/login.do 完成登录
+    7. 返回 XianyuApis 实例
+    """
+    # ── 1. 基础 cookie ──
+    s = build_initial_cookies()
+
+    cna = (s.cookies.get('cna', domain='.goofish.com')
+           or s.cookies.get('cna', domain='.mmstat.com') or '')
+    cookie2 = s.cookies.get('cookie2', domain='.goofish.com') or ''
+
+    # ── 2. 加载 passport mini_login 页面拿 XSRF-TOKEN / _tb_token_ 等 ──
+    s.get('https://passport.goofish.com/mini_login.htm',
+          params={'lang': 'zh_cn', 'appName': 'xianyu', 'appEntrance': 'web',
+                  'styleType': 'vertical', 'bizParams': '',
+                  'notLoadSsoView': 'false', 'notKeepLogin': 'false',
+                  'isMobile': 'false', 'qrCodeFirst': 'false',
+                  'stie': '77', 'rnd': '0.6842814084442211'},
+          headers={**_PASSPORT_HEADERS, 'Referer': 'https://www.goofish.com/',
+                   'sec-fetch-site': 'same-site', 'sec-fetch-dest': 'iframe',
+                   'sec-fetch-mode': 'navigate'},
+          timeout=15)
+
+    csrf_token = s.cookies.get('XSRF-TOKEN', domain='passport.goofish.com') or ''
+    tb_token = s.cookies.get('_tb_token_', domain='.goofish.com') or ''
+
+    # ── 3. 生成二维码 ──
+    gen_params = {
+        'appName': 'xianyu', 'fromSite': '77',
+        'appEntrance': 'web',
+        '_csrf_token': csrf_token,
+        'umidToken': '',
+        'hsiz': cookie2,
+        'bizParams': f'taobaoBizLoginFrom=web&renderRefer={quote("https://www.goofish.com/")}',
+        'mainPage': 'false', 'isMobile': 'false',
+        'lang': 'zh_CN', 'returnUrl': '', 'umidTag': 'SERVER',
+    }
+    gen_resp = s.get(
+        'https://passport.goofish.com/newlogin/qrcode/generate.do',
+        params=gen_params,
+        headers={**_PASSPORT_HEADERS,
+                 'Referer': 'https://passport.goofish.com/mini_login.htm'},
+        timeout=10).json()
+
+    gen_data = gen_resp['content']['data']
+    qr_url = gen_data['codeContent']
+    qr_t = gen_data['t']
+    qr_ck = gen_data['ck']
+
+    print(f'[qrcode_login] QR URL: {qr_url}')
+    print(f'[qrcode_login] Scan with XianYu APP (top-left corner -> scan)')
+
+    # 终端打印二维码（用半块字符 ▀▄█ 使其接近正方形）
+    if show_qrcode:
+        try:
+            import qrcode as qr_lib
+            import sys
+            qr = qr_lib.QRCode(border=1, box_size=1)
+            qr.add_data(qr_url)
+            qr.make()
+            matrix = qr.get_matrix()
+            rows = len(matrix)
+            lines = []
+            for r in range(0, rows, 2):
+                line = ''
+                for c in range(len(matrix[r])):
+                    top = matrix[r][c]
+                    bot = matrix[r + 1][c] if r + 1 < rows else False
+                    if top and bot:
+                        line += '█'      # █ 上下都黑
+                    elif top and not bot:
+                        line += '▀'      # ▀ 上黑下白
+                    elif not top and bot:
+                        line += '▄'      # ▄ 上白下黑
+                    else:
+                        line += ' '           #   上下都白
+                lines.append(line)
+            qr_str = '\n'.join(lines) + '\n'
+            sys.stdout.buffer.write(qr_str.encode('utf-8', errors='replace'))
+            sys.stdout.buffer.flush()
+        except ImportError:
+            print('[qrcode_login] pip install qrcode to show QR in terminal')
+
+    # ── 4. 轮询扫码状态 ──
+    query_url = 'https://passport.goofish.com/newlogin/qrcode/query.do'
+    query_base = {
+        'appName': 'xianyu', 'fromSite': '77',
+        'appEntrance': 'web', '_csrf_token': csrf_token,
+        'umidToken': '', 'hsiz': cookie2,
+        'bizParams': f'taobaoBizLoginFrom=web&renderRefer={quote("https://www.goofish.com/")}',
+        'mainPage': 'false', 'isMobile': 'false',
+        'lang': 'zh_CN', 'returnUrl': '', 'umidTag': 'SERVER',
+        'navlanguage': 'en', 'navUserAgent': UA, 'navPlatform': 'Win32',
+        'isIframe': 'true',
+        'documentReferer': 'https://www.goofish.com/',
+        'defaultView': 'sms',
+        'deviceId': cna,
+    }
+    deadline = time.time() + timeout
+    login_token = None
+    last_status = ''
+
+    while time.time() < deadline:
+        body = {**query_base, 't': str(qr_t), 'ck': qr_ck}
+        resp = s.post(
+            f'{query_url}?appName=xianyu&fromSite=77',
+            data=body,
+            headers={**_PASSPORT_HEADERS,
+                     'Content-Type': 'application/x-www-form-urlencoded',
+                     'Origin': 'https://passport.goofish.com',
+                     'Referer': 'https://passport.goofish.com/mini_login.htm'},
+            timeout=10)
+        qdata = resp.json()['content']['data']
+        status = qdata.get('qrCodeStatus', '')
+
+        if status != last_status:
+            remaining = int(deadline - time.time())
+            status_map = {'NEW': 'Waiting for scan', 'SCANNED': 'Scanned, confirm on phone',
+                          'CONFIRMED': 'Confirmed', 'EXPIRED': 'QR expired'}
+            desc = status_map.get(status, status)
+            print(f'[qrcode_login] [{status}] {desc} ({remaining}s left)')
+            last_status = status
+
+        if status == 'CONFIRMED':
+            login_token = qdata.get('token') or qdata.get('lgToken')
+            # CONFIRMED 响应的 Set-Cookie 里已经包含了 sgcookie/unb/tracknick/csg
+            break
+        elif status == 'EXPIRED':
+            raise TimeoutError('二维码已过期，请重新调用 qrcode_login()')
+
+        time.sleep(poll_interval)
+
+    if not login_token:
+        # 如果没有 token，可能 Set-Cookie 已经完成登录（某些版本没有 token 字段）
+        if s.cookies.get('unb'):
+            print('[qrcode_login] 登录成功（通过 Set-Cookie）')
+        else:
+            raise TimeoutError('扫码超时，未完成登录')
+    else:
+        # ── 5. login_token/login.do 完成登录 ──
+        login_resp = s.post(
+            'https://passport.goofish.com/login_token/login.do',
+            params={'token': login_token, 'subFlow': 'DIALOG_CHECK_LOGIN_RPC',
+                    'nextCode': '0018', 'bizScene': 'qrcode', 'confirm': 'true'},
+            data={'deviceId': cna},
+            headers={**_PASSPORT_HEADERS,
+                     'Content-Type': 'application/x-www-form-urlencoded',
+                     'Origin': 'https://passport.goofish.com',
+                     'Referer': 'https://passport.goofish.com/mini_login.htm'},
+            timeout=10)
+        print('[qrcode_login] login_token 请求完成, status:', login_resp.status_code)
+
+    # ── 6. 刷新 mtop cookie（登录后 _m_h5_tk 会变） ──
+    s.post(
+        'https://h5api.m.goofish.com/h5/mtop.idle.web.user.page.nav/1.0/',
+        params={'jsv': '2.7.2', 'appKey': '34839810',
+                't': str(int(time.time() * 1000)), 'sign': '', 'v': '1.0',
+                'type': 'originaljson', 'dataType': 'json', 'timeout': '20000',
+                'api': 'mtop.idle.web.user.page.nav',
+                'sessionOption': 'AutoLoginOnly', 'spm_cnt': 'a21ybx.home.0.0'},
+        data='data=%7B%7D', headers=_MTOP_HEADERS, timeout=10)
+
+    # ── 7. 组装 XianyuApis ──
+    unb = s.cookies.get('unb', domain='.goofish.com') or ''
+    tracknick = s.cookies.get('tracknick', domain='.goofish.com') or ''
+    print(f'[qrcode_login] 登录成功！用户: {tracknick} (unb={unb})')
+
+    cookies_dict = {}
+    for c in s.cookies:
+        if c.domain and ('.goofish.com' in c.domain or '.mmstat.com' in c.domain):
+            cookies_dict[c.name] = c.value
+
+    device_id = generate_device_id(unb)
+    api = XianyuApis(cookies_dict, device_id)
+    api.session = s
+    return api
 
 
 class XianyuApis:
@@ -482,9 +747,14 @@ class XianyuApis:
 
 
 if __name__ == '__main__':
-    cookies_str = r''
-    cookies = trans_cookies(cookies_str)
-    xianyu = XianyuApis(cookies, generate_device_id(cookies['unb']))
+    xianyu = qrcode_login()
+    cookies_dict = {c.name: c.value for c in xianyu.session.cookies if c.domain and '.goofish.com' in c.domain}
+    print('\n=== 登录后 cookie ===')
+    print(json.dumps(cookies_dict, ensure_ascii=False, indent=2))
+
+    # cookies_str = r''
+    # cookies = trans_cookies(cookies_str)
+    # xianyu = XianyuApis(cookies, generate_device_id(cookies.get('unb', '')))
     # res = xianyu.get_token()
     # print(json.dumps(res, indent=4, ensure_ascii=False))
 

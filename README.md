@@ -45,9 +45,17 @@
 
 ---
 
-## 成品案例
+## 成品案例 在本项目基础上继续构建的Agent项目
 
 - [XianyuAutoAgent](https://github.com/shaxiu/XianyuAutoAgent) — 基于本项目构建的闲鱼 AI 全自动客服智能体
+- [xianyu-auto-reply](https://github.com/zhinianboke/xianyu-auto-reply) -  基于本项目构建的闲鱼自动回复系统
+- [xianyu-auto-reply-fix](https://github.com/GuDong2003/xianyu-auto-reply-fix) -  基于本项目构建的闲鱼闲鱼管理系统
+- [xianyu-auto-reply](https://github.com/zhinianboke-new/xianyu-auto-reply) -  基于本项目构建的闲鱼 AI 全自动客服智能体
+- [xianyu-auto-reply](https://github.com/HJYHJYHJY/xianyu-auto-reply) -  基于本项目构建的闲鱼闲鱼自动回复系统
+- [xianyu-super-butler](https://github.com/23Star/xianyu-super-butler) -  基于本项目构建的闲鱼闲鱼超级管家
+- [XianyuAutoAgent](https://github.com/qOeOp/XianyuAutoAgent) -  基于本项目构建的闲鱼智能闲鱼客服机器人系统
+
+
 
 > 欢迎提交你基于本项目构建的 AI 应用，PR 随时欢迎！
 

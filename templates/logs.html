@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}回复日志{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>回复日志</h2>
+    <p>查看最近自动回复、人工接管和异常记录。</p>
+  </div>
+</div>
+
+<section class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>时间</th>
+        <th>会话</th>
+        <th>来源</th>
+        <th>状态</th>
+        <th>模型</th>
+        <th>错误</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+        <tr>
+          <td>{{ log.created_at }}</td>
+          <td>{{ log.conversation_id }}</td>
+          <td>{{ log.reply_source }}</td>
+          <td>{{ log.status }}</td>
+          <td>{{ log.ai_model or '-' }}</td>
+          <td>{{ log.error_message or '-' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

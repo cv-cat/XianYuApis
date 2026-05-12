@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}系统设置{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>系统设置</h2>
+    <p>配置自动回复、AI 参数和兜底话术。</p>
+  </div>
+</div>
+
+<section class="card">
+  <form method="post" class="stack">
+    <label><input type="checkbox" name="auto_reply_enabled" {% if settings.auto_reply_enabled == '1' %}checked{% endif %}> 启用自动回复</label>
+    <label><input type="checkbox" name="ai_reply_enabled" {% if settings.ai_reply_enabled == '1' %}checked{% endif %}> 启用 AI 兜底</label>
+    <label>默认礼貌回复
+      <textarea name="default_reply_text" rows="3">{{ settings.default_reply_text }}</textarea>
+    </label>
+    <label>人工兜底回复
+      <textarea name="manual_fallback_text" rows="3">{{ settings.manual_fallback_text }}</textarea>
+    </label>
+    <label>AI API URL
+      <input name="ai_api_url" value="{{ settings.ai_api_url }}">
+    </label>
+    <label>AI API Key
+      <input name="ai_api_key" value="{{ settings.ai_api_key }}">
+    </label>
+    <label>AI 模型
+      <input name="ai_model" value="{{ settings.ai_model }}">
+    </label>
+    <label>AI System Prompt
+      <textarea name="ai_system_prompt" rows="5">{{ settings.ai_system_prompt }}</textarea>
+    </label>
+    <el-button type="primary" native-type="submit">保存设置</el-button>
+  </form>
+</section>
+{% endblock %}

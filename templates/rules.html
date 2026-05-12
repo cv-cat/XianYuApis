@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}规则与 FAQ{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>规则与 FAQ</h2>
+    <p>默认进入列表页，统一查看规则和 FAQ，再按需新增。</p>
+    <p class="hint">规则按优先级从小到大匹配。数字越小，越先命中。</p>
+  </div>
+  <div class="action-row">
+    <a href="{{ url_for('new_rule_or_faq', kind='rule') }}"><el-button type="primary">新增规则</el-button></a>
+    <a href="{{ url_for('new_rule_or_faq', kind='faq') }}"><el-button plain>新增 FAQ</el-button></a>
+  </div>
+</div>
+
+<section class="card">
+  <h3>测试文本命中</h3>
+  <form method="get" action="{{ url_for('rules') }}" class="stack">
+    <input name="debug_text" value="{{ debug_text or '' }}" placeholder="输入一句测试文本，例如：价格多少">
+    <div class="action-row">
+      <el-button type="primary" native-type="submit">测试命中</el-button>
+      <a href="{{ url_for('rules') }}"><el-button plain>清空</el-button></a>
+    </div>
+  </form>
+
+  {% if debug_result %}
+    <div class="debug-box">
+      <p><strong>测试文本：</strong>{{ debug_text }}</p>
+      <p><strong>识别意图：</strong><el-tag size="small" type="warning" effect="plain">{{ debug_result.intent }}</el-tag></p>
+      <p><strong>命中结果：</strong><el-tag size="small" effect="plain">{{ debug_result.source }}</el-tag></p>
+      {% if debug_result.matched_rule %}
+        <p><strong>规则名称：</strong>{{ debug_result.matched_rule.rule_name }}</p>
+        <p><strong>规则类型：</strong>{{ debug_result.matched_rule.rule_type }}</p>
+        <p><strong>优先级：</strong>{{ debug_result.matched_rule.priority }}</p>
+        <p><strong>关键词：</strong>{{ debug_result.matched_rule.keywords|from_json_list|join('，') }}</p>
+        <p><strong>回复内容：</strong>{{ debug_result.matched_rule.reply_text }}</p>
+      {% elif debug_result.matched_faq %}
+        <p><strong>FAQ 标题：</strong>{{ debug_result.matched_faq.title }}</p>
+        <p><strong>命中关键词：</strong>{{ debug_result.matched_faq.match_keywords }}</p>
+        <p><strong>回复内容：</strong>{{ debug_result.matched_faq.content }}</p>
+      {% else %}
+        <p class="hint">未命中敏感词、关键词规则或 FAQ，将继续走 AI / 默认兜底回复。</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+
+<div class="grid two">
+  <section class="card">
+    <h3>规则列表</h3>
+    <table>
+      <thead><tr><th>名称</th><th>类型</th><th>关键词</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+        {% for rule in rules %}
+          <tr>
+            <td>{{ rule.rule_name }}</td>
+            <td>{{ rule.rule_type }}</td>
+            <td>{{ rule.keywords|from_json_list|join('，') }}</td>
+            <td>{{ rule.priority }}</td>
+            <td>{% if rule.enabled %}<el-tag size="small" type="success" effect="plain">启用</el-tag>{% else %}<el-tag size="small" type="info" effect="plain">停用</el-tag>{% endif %}</td>
+            <td>
+              <div class="action-row">
+                <a href="{{ url_for('edit_rule', rule_id=rule.id) }}"><el-button plain>编辑</el-button></a>
+                <form method="post" action="{{ url_for('delete_rule', rule_id=rule.id) }}">
+                  <el-button type="danger" plain native-type="submit">删除</el-button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h3>FAQ 列表</h3>
+    <table>
+      <thead><tr><th>标题</th><th>关键词</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+        {% for faq in faqs %}
+          <tr>
+            <td>{{ faq.title }}</td>
+            <td>{{ faq.match_keywords }}</td>
+            <td>{% if faq.enabled %}<el-tag size="small" type="success" effect="plain">启用</el-tag>{% else %}<el-tag size="small" type="info" effect="plain">停用</el-tag>{% endif %}</td>
+            <td>
+              <div class="action-row">
+                <a href="{{ url_for('edit_faq', faq_id=faq.id) }}"><el-button plain>编辑</el-button></a>
+                <form method="post" action="{{ url_for('delete_faq', faq_id=faq.id) }}">
+                  <el-button type="danger" plain native-type="submit">删除</el-button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

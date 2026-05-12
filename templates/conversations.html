@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}会话工作台{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>会话工作台</h2>
+    <p>查看买家消息、处理人工接管、发送手动回复。</p>
+  </div>
+  <div class="status-chip"><el-tag type="info" effect="plain">{{ channel_status.state }} / {{ account.account_name or '未登录' }}</el-tag></div>
+</div>
+
+<div class="workspace">
+  <section class="card conversation-list">
+    <h3>会话列表</h3>
+    {% if conversations %}
+      <div class="conversation-items">
+        {% for item in conversations %}
+          <a class="conversation-item {% if selected and item.conversation_id == selected.conversation_id %}active{% endif %}" href="{{ url_for('conversations', conversation_id=item.conversation_id) }}">
+            <div class="line strong">
+              <span>{{ item.buyer_name }}</span>
+              <el-tag size="small" effect="plain">{{ item.status }}</el-tag>
+            </div>
+            <div class="line">{{ item.last_message_preview or '-' }}</div>
+            <div class="line muted">
+              <span>{{ item.last_message_at or '-' }}</span>
+              <span>未读 {{ item.unread_count }}</span>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty">还没有会话数据。</p>
+    {% endif %}
+  </section>
+
+  <section class="card chat-panel">
+    {% if selected %}
+      <div class="chat-header">
+        <div>
+          <h3>{{ selected.buyer_name }}</h3>
+          <p>会话 ID：{{ selected.conversation_id }}</p>
+          <div class="meta-inline">
+            <span>意图：<el-tag size="small" effect="plain">{{ selected.last_intent or 'unknown' }}</el-tag></span>
+            <span>议价次数：<el-tag size="small" type="warning" effect="plain">{{ selected.bargain_count or 0 }}</el-tag></span>
+          </div>
+          {% if selected.item_id or selected.item_title %}
+            <div class="item-context-card">
+              <div>
+                <strong>当前咨询商品</strong>
+                <p>{{ selected.item_title or '未识别商品标题' }}</p>
+                <p class="hint">商品 ID：{{ selected.item_id or '-' }}</p>
+                <p class="hint">来源：{{ selected.item_context_source or '-' }}</p>
+                {% if selected.item_url %}<p class="hint item-url">{{ selected.item_url }}</p>{% endif %}
+              </div>
+            </div>
+          {% endif %}
+        </div>
+        <form class="inline-form" method="post" action="{{ url_for('update_conversation_mode', conversation_id=selected.conversation_id) }}">
+          <input type="hidden" name="manual_takeover" value="{{ 0 if selected.manual_takeover else 1 }}">
+          <el-button plain native-type="submit">
+            {% if selected.manual_takeover %}切回自动回复{% else %}切换人工接管{% endif %}
+          </el-button>
+        </form>
+      </div>
+
+      <div class="messages">
+        {% for message in messages %}
+          <div class="message {{ message.sender_type }}">
+            <div class="message-meta">
+              <strong>{{ message.sender_name or message.sender_type }}</strong>
+              <span>{{ message.created_at }}</span>
+              {% if message.reply_source %}<el-tag size="small" effect="plain">{{ message.reply_source }}</el-tag>{% endif %}
+            </div>
+            <div class="message-body">{{ message.content }}</div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <form method="post" action="{{ url_for('manual_reply', conversation_id=selected.conversation_id) }}">
+        <label for="content">人工回复</label>
+        <textarea id="content" name="content" rows="4" placeholder="输入要发送给买家的内容"></textarea>
+        <el-button type="primary" native-type="submit">发送人工回复</el-button>
+      </form>
+    {% else %}
+      <p class="empty">请选择一个会话。</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

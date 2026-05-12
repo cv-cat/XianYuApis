@@ -1,2 +1,9 @@
 requests
 loguru
+websockets
+qrcode
+typing_extensions
+pydantic>=2,<3
+blackboxprotobuf
+PyExecJS
+Flask>=3,<4

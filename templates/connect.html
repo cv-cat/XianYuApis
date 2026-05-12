@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}接入状态{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>接入状态</h2>
+    <p>管理闲鱼登录、监听和自动回复总开关。</p>
+  </div>
+</div>
+
+<div class="grid two">
+  <section class="card">
+    <h3>账号信息</h3>
+    <dl class="meta">
+      <div><dt>平台</dt><dd>{{ account.platform }}</dd></div>
+      <div><dt>账号昵称</dt><dd>{{ account.account_name or '未登录' }}</dd></div>
+      <div><dt>账号 ID</dt><dd>{{ account.account_id or '-' }}</dd></div>
+      <div><dt>登录状态</dt><dd><el-tag size="small" effect="plain">{{ account.login_status }}</el-tag></dd></div>
+      <div><dt>监听状态</dt><dd><el-tag size="small" type="success" effect="plain">{{ account.listen_status }}</el-tag></dd></div>
+      <div><dt>最近登录</dt><dd>{{ account.last_login_at or '-' }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h3>通道状态</h3>
+    <dl class="meta">
+      <div><dt>当前状态</dt><dd><el-tag size="small" type="warning" effect="plain">{{ channel_status.state }}</el-tag></dd></div>
+      <div><dt>说明</dt><dd>{{ channel_status.message }}</dd></div>
+      <div><dt>当前账号</dt><dd>{{ channel_status.account_name or '-' }}</dd></div>
+      <div><dt>最近事件</dt><dd>{{ channel_status.last_event_at or '-' }}</dd></div>
+      <div><dt>最近错误</dt><dd>{{ channel_status.last_error or '-' }}</dd></div>
+    </dl>
+    <div class="action-row">
+      <el-button type="primary" @click="startWebLogin">登录闲鱼</el-button>
+      <el-button plain @click="startListener">开始监听</el-button>
+    </div>
+    <p class="hint">现在支持直接在网页里展示二维码和轮询扫码状态。登录成功后，再点击“开始监听”。</p>
+  </section>
+</div>
+
+<section class="card qr-card" v-if="qrVisible">
+  <div class="page-header">
+    <div>
+      <h3>扫码登录闲鱼</h3>
+      <p>请用闲鱼 App 扫码，并在手机上确认登录。</p>
+    </div>
+    <el-tag size="small" effect="plain">[[ loginStatusText ]]</el-tag>
+  </div>
+  <div class="qr-panel">
+    <div id="qrcode"></div>
+    <div class="qr-meta">
+      <p><strong>状态：</strong>[[ loginStatusText ]]</p>
+      <p class="hint">二维码过期后重新点击“登录闲鱼”即可。</p>
+      <div class="action-row">
+        <el-button plain @click="closeQr">关闭</el-button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  window.connectPageState = {
+    qrVisible: false,
+    qrUrl: '',
+    loginSessionId: '',
+    loginStatusText: '未开始',
+    loginPollTimer: null,
+  };
+
+  window.connectPageMethods = {
+    stopLoginPolling() {
+      if (this.loginPollTimer) {
+        clearInterval(this.loginPollTimer);
+        this.loginPollTimer = null;
+      }
+    },
+    async startWebLogin() {
+      this.stopLoginPolling();
+      const resp = await fetch('/api/channel/login/start', { method: 'POST' });
+      const data = await resp.json();
+      if (!data.ok) {
+        alert(data.message || '登录会话创建失败');
+        return;
+      }
+      this.qrVisible = true;
+      this.qrUrl = data.qr_url;
+      this.loginSessionId = data.session_id;
+      this.loginStatusText = '等待扫码';
+      this.$nextTick(() => {
+        const el = document.getElementById('qrcode');
+        if (el) {
+          el.innerHTML = '';
+          new QRCode(el, {
+            text: this.qrUrl,
+            width: 220,
+            height: 220,
+          });
+        }
+      });
+      this.pollLoginStatus();
+    },
+    async pollLoginStatus() {
+      if (!this.loginSessionId) return;
+      this.stopLoginPolling();
+      this.loginPollTimer = setInterval(async () => {
+        const resp = await fetch(`/api/channel/login/status?session_id=${this.loginSessionId}`);
+        const data = await resp.json();
+        if (!data.ok) {
+          this.loginStatusText = data.message || '登录失败';
+          this.stopLoginPolling();
+          return;
+        }
+        const statusTextMap = {
+          NEW: '等待扫码',
+          SCANNED: '已扫码，待确认',
+          CONFIRMED: '已确认，正在完成登录',
+          logged_in: '登录成功',
+          EXPIRED: '二维码已过期',
+          expired: '二维码已过期',
+        };
+        this.loginStatusText = statusTextMap[data.status] || data.status;
+        if (data.status === 'logged_in') {
+          this.stopLoginPolling();
+          location.reload();
+        }
+        if (data.status === 'EXPIRED' || data.status === 'expired') {
+          this.stopLoginPolling();
+        }
+      }, 2500);
+    },
+    async startListener() {
+      const resp = await fetch('/api/channel/listener/start', { method: 'POST' });
+      const data = await resp.json();
+      alert(data.message || (data.ok ? '监听启动成功' : '监听启动失败'));
+      if (data.ok) {
+        location.reload();
+      }
+    },
+    closeQr() {
+      this.stopLoginPolling();
+      this.qrVisible = false;
+      this.qrUrl = '';
+      this.loginSessionId = '';
+      this.loginStatusText = '未开始';
+    },
+  };
+</script>
+{% endblock %}

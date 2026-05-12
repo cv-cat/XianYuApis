@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}闲鱼客服工作台{% endblock %}</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <div class="layout" id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>闲鱼客服</h1>
+        <p>客服系统 MVP</p>
+      </div>
+      <nav class="nav">
+        <a class="{% if request.endpoint == 'connect' %}active{% endif %}" href="{{ url_for('connect') }}">接入状态</a>
+        <a class="{% if request.endpoint == 'conversations' or request.endpoint == 'manual_reply' or request.endpoint == 'update_conversation_mode' %}active{% endif %}" href="{{ url_for('conversations') }}">会话工作台</a>
+        <a class="{% if request.endpoint in ['rules', 'new_rule_or_faq', 'edit_rule', 'edit_faq', 'save_rule', 'delete_rule', 'save_faq', 'delete_faq'] %}active{% endif %}" href="{{ url_for('rules') }}">规则与 FAQ</a>
+        <a class="{% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">系统设置</a>
+        <a class="{% if request.endpoint == 'logs' %}active{% endif %}" href="{{ url_for('logs') }}">回复日志</a>
+      </nav>
+    </aside>
+    <main class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-list">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+  <script>
+    const initialState = window.connectPageState || {};
+    const initialMethods = window.connectPageMethods || {};
+    const app = Vue.createApp({
+      delimiters: ['[[', ']]'],
+      data() {
+        return { ...initialState };
+      },
+      methods: { ...initialMethods }
+    });
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>

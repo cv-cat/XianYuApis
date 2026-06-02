@@ -133,6 +133,22 @@ python manage_items.py delete --item-id 1234567890 --yes
 
 下架和删除会对线上商品执行真实变更，必须显式传入 `--yes`。
 
+### 发布商品
+
+先检查 `publish_config.json` 中的 `publish` 配置，再执行发布命令：
+
+```bash
+python publish_item.py
+```
+
+默认只会打印发布配置预览，不会真实发布。确认无误后再显式执行：
+
+```bash
+python publish_item.py --yes
+```
+
+发布会创建真实线上商品，必须显式传入 `--yes`。
+
 ---
 
 ## 项目结构
@@ -142,6 +158,7 @@ XianYuApis/
 ├── goofish_live.py      # 主入口：WebSocket 消息监听 & 回复逻辑（在此接入 AI）
 ├── goofish_apis.py      # HTTP API 封装（登录、刷新 Token、商品详情、上传媒体）
 ├── manage_items.py      # 商品列表、下架、删除命令行工具
+├── publish_item.py      # 商品发布命令行工具
 ├── publish_config.example.json # Cookie 与发布配置模板
 ├── message/
 │   ├── types.py         # 消息类型定义（TextContent / ImageContent / AudioContent）

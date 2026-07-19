@@ -156,11 +156,11 @@ async def handle_message(self, message, websocket):
 
 ## Star 趋势
 
-<a href="https://www.star-history.com/#cv-cat/XianYuApis&Date">
+<a href="https://cvcat.site/star-history/svg?repos=cv-cat/XianYuApis&type=Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=cv-cat/XianYuApis&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=cv-cat/XianYuApis&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=cv-cat/XianYuApis&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://cvcat.site/star-history/svg?repos=cv-cat/XianYuApis&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://cvcat.site/star-history/svg?repos=cv-cat/XianYuApis&type=Date" />
+    <img alt="Star History Chart" src="https://cvcat.site/star-history/svg?repos=cv-cat/XianYuApis&type=Date" />
   </picture>
 </a>
 

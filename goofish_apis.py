@@ -1,9 +1,3 @@
-'''
-Description:
-Date: 2026-04-04 15:32:48
-LastEditTime: 2026-04-26 14:33:00
-FilePath: \XianYuApis\goofish_apis.py
-'''
 import json
 import os
 import subprocess
@@ -292,6 +286,47 @@ class XianyuApis:
         self.device_id = device_id
         self.cookies = {}
 
+    def _post_json_api(self, url, api, data_obj, version="1.0", spm_cnt="a21ybx.personal.0.0",
+                       spm_pre="a21ybx.personal.manage.1.default", log_id="personalManage"):
+        headers = {
+            "accept": "application/json",
+            "accept-language": "en,zh-CN;q=0.9,zh;q=0.8,zh-TW;q=0.7,ja;q=0.6",
+            "cache-control": "no-cache",
+            "content-type": "application/x-www-form-urlencoded",
+            "origin": "https://www.goofish.com",
+            "pragma": "no-cache",
+            "priority": "u=1, i",
+            "referer": "https://www.goofish.com/",
+            "sec-ch-ua": "\"Chromium\";v=\"146\", \"Not-A.Brand\";v=\"24\", \"Google Chrome\";v=\"146\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+        }
+        params = {
+            "jsv": "2.7.2",
+            "appKey": "34839810",
+            "t": str(int(time.time()) * 1000),
+            "sign": "",
+            "v": version,
+            "type": "originaljson",
+            "accountSite": "xianyu",
+            "dataType": "json",
+            "timeout": "20000",
+            "api": api,
+            "sessionOption": "AutoLoginOnly",
+            "spm_cnt": spm_cnt,
+            "spm_pre": spm_pre,
+            "log_id": log_id
+        }
+        data_val = json.dumps(data_obj, separators=(',', ':'))
+        token = self.session.cookies.get('_m_h5_tk', '').split('_')[0]
+        params['sign'] = generate_sign(params['t'], token, data_val)
+        response = self.session.post(url, headers=headers, params=params, data={"data": data_val})
+        return response.json()
+
     def get_token(self):
         headers = {
             "Host": "h5api.m.goofish.com",
@@ -454,6 +489,47 @@ class XianyuApis:
         response = self.session.post(self.item_detail_url, params=params, data=data)
         res_json = response.json()
         return res_json
+
+    def list_my_items(self, page_number: int = 1, page_size: int = 20, need_group_info: bool = True,
+                      user_id: Optional[str] = None):
+        user_id = user_id or self.session.cookies.get("unb", "")
+        data = {
+            "needGroupInfo": need_group_info,
+            "pageNumber": page_number,
+            "userId": str(user_id),
+            "pageSize": page_size
+        }
+        return self._post_json_api(
+            url="https://h5api.m.goofish.com/h5/mtop.idle.web.xyh.item.list/1.0/",
+            api="mtop.idle.web.xyh.item.list",
+            data_obj=data,
+            version="1.0",
+            spm_cnt="a21ybx.personal.0.0",
+            spm_pre="a21ybx.personal.manage.1.list",
+            log_id="personalListItems"
+        )
+
+    def down_shelf_item(self, item_id: str):
+        return self._post_json_api(
+            url="https://h5api.m.goofish.com/h5/mtop.taobao.idle.item.downshelf/2.0/",
+            api="mtop.taobao.idle.item.downshelf",
+            data_obj={"itemId": str(item_id)},
+            version="2.0",
+            spm_cnt="a21ybx.item.0.0",
+            spm_pre="a21ybx.personal.manage.1.downshelf",
+            log_id="itemDownShelf"
+        )
+
+    def delete_item(self, item_id: str):
+        return self._post_json_api(
+            url="https://h5api.m.goofish.com/h5/com.taobao.idle.item.delete/1.1/",
+            api="com.taobao.idle.item.delete",
+            data_obj={"itemId": str(item_id)},
+            version="1.1",
+            spm_cnt="a21ybx.item.0.0",
+            spm_pre="a21ybx.personal.manage.1.delete",
+            log_id="itemDelete"
+        )
 
 
     def get_public_channel(self, title, images_info):

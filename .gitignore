@@ -21,6 +21,9 @@ MANIFEST
 *.log
 local_settings.py
 db.sqlite3
+publish_config.json
+.playwright-mcp/
+.spec-workflow/
 __pypackages__/
 .venv
 env/

@@ -1,0 +1,15 @@
+{
+  "cookies": "your_cookie_string_here",
+  "publish": {
+    "images_path": [
+      "C:/path/to/image-1.png"
+    ],
+    "goods_desc": "商品描述文案",
+    "price": 99.9,
+    "delivery": {
+      "choice": "邮寄",
+      "post_price": 0,
+      "can_self_pickup": false
+    }
+  }
+}

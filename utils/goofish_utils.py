@@ -2,16 +2,15 @@ import base64
 import json
 import subprocess
 from functools import partial
+from pathlib import Path
 
 import blackboxprotobuf
 
 subprocess.Popen = partial(subprocess.Popen, encoding="utf-8")
 import execjs
 
-try:
-    xianyu_js = execjs.compile(open(r'../static/goofish_js_version_2.js', 'r', encoding='utf-8').read())
-except:
-    xianyu_js = execjs.compile(open(r'static/goofish_js_version_2.js', 'r', encoding='utf-8').read())
+STATIC_JS_PATH = Path(__file__).resolve().parents[1] / "static" / "goofish_js_version_2.js"
+xianyu_js = execjs.compile(STATIC_JS_PATH.read_text(encoding="utf-8"))
 
 def trans_cookies(cookies_str):
     cookies = dict()

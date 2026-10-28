@@ -292,6 +292,12 @@ class XianyuApis:
         self.device_id = device_id
         self.cookies = {}
 
+    def get_item_analytics(self, member_id=""):
+        """复用当前登录 Session 查询闲鱼小铺商品曝光、浏览及成交数据。"""
+        from item_analytics import ItemAnalytics
+
+        return ItemAnalytics(session=self.session, member_id=member_id)
+
     def get_token(self):
         headers = {
             "Host": "h5api.m.goofish.com",
